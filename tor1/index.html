@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторна робота №1 — Варіант 1</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f4f7fb;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent: #f59e0b;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px;
+        }
+        .container {
+            max-width: 1320px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+        }
+        header {
+            grid-column: span 2;
+            background: var(--card-bg);
+            padding: 20px 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 { font-size: 18px; font-weight: 600; }
+        header span {
+            background: #dbeafe;
+            color: var(--primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .panel {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+        }
+        .input-group {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .field {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .field.full { grid-column: span 2; }
+        .field label {
+            font-size: 11px;
+            margin-bottom: 4px;
+            color: var(--text-main);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .field.highlight label {
+            color: #b45309;
+            font-weight: 700;
+        }
+        .field input {
+            width: 100%;
+            min-width: 0;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            transition: border-color 0.2s;
+        }
+        .field.highlight input {
+            border-color: var(--accent);
+            background-color: #fffbeb;
+        }
+        .field input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        button.btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button.btn-primary:hover { background: var(--primary-hover); }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .kpi-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            padding: 18px 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+        }
+        .kpi-card.accent { border-left-color: var(--accent); }
+        .kpi-card .label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+        .kpi-card .value { font-size: 20px; font-weight: 700; color: var(--text-main); }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .tab-btn {
+            padding: 8px 16px;
+            background: #f1f5f9;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 460px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Дослідження показників надійності невідновлюваних ПАЗ (Метод Рунге-Кутти 4)</h1>
+    </header>
+
+    <!-- Панель параметрів -->
+    <div class="panel">
+        <div class="section-title">Апаратні засоби (λ АЗ, 1/год)</div>
+        <div class="input-group">
+            <div class="field highlight">
+                <label>★ Модуль 1 (λ_АЗ1):</label>
+                <input type="number" id="l_az1" value="0.0005" step="0.0001">
+            </div>
+            <div class="field">
+                <label>Модуль 2 (λ_АЗ2):</label>
+                <input type="number" id="l_az2" value="0.0004" step="0.0001">
+            </div>
+            <div class="field">
+                <label>Модуль 3 (λ_АЗ3):</label>
+                <input type="number" id="l_az3" value="0.0003" step="0.0001">
+            </div>
+            <div class="field">
+                <label>Модуль 4 (λ_АЗ4):</label>
+                <input type="number" id="l_az4" value="0.00025" step="0.00005">
+            </div>
+            <div class="field highlight full">
+                <label>★ Модуль 5 — послідовний (λ_АЗ5):</label>
+                <input type="number" id="l_az5" value="0.0005" step="0.0001">
+            </div>
+        </div>
+
+        <div class="section-title">Програмні засоби (λ ПЗ, 1/год)</div>
+        <div class="input-group">
+            <div class="field highlight">
+                <label>★ Модуль 1 (λ_ПЗ1):</label>
+                <input type="number" id="l_pz1" value="0.0005" step="0.0001">
+            </div>
+            <div class="field">
+                <label>Модуль 3 (λ_ПЗ3):</label>
+                <input type="number" id="l_pz3" value="0.0003" step="0.0001">
+            </div>
+        </div>
+
+        <div class="section-title">Параметри переходів та часу</div>
+        <div class="input-group">
+            <div class="field">
+                <label>λ_up1 (Оновлення):</label>
+                <input type="number" id="l_up1" value="0.001" step="0.0005">
+            </div>
+            <div class="field">
+                <label>λ_swerror (Збій ПЗ):</label>
+                <input type="number" id="l_swerror" value="0.002" step="0.0005">
+            </div>
+            <div class="field">
+                <label>μ_rest (Перезапуск):</label>
+                <input type="number" id="u_rest" value="0.5" step="0.1">
+            </div>
+            <div class="field">
+                <label>μ_repl (Заміна ПЗ):</label>
+                <input type="number" id="u_repl" value="0.2" step="0.05">
+            </div>
+            <div class="field">
+                <label>Час інтегрування (год):</label>
+                <input type="number" id="t_end" value="4000" step="500">
+            </div>
+            <div class="field">
+                <label>Крок Рунге-Кутти (dt):</label>
+                <input type="number" id="dt_step" value="1" step="0.5">
+            </div>
+        </div>
+
+        <button class="btn-primary" onclick="runSimulation()">Розрахувати показники</button>
+    </div>
+
+    <!-- Панель результатів та графіків -->
+    <div class="main-content">
+        <div class="kpi-cards">
+            <div class="kpi-card accent">
+                <div class="label">Середній час до відмови (T_сер)</div>
+                <div class="value" id="res_mttf">— год</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Еквівалентна інтенсивність АЗ (λ_hw)</div>
+                <div class="value" id="res_lhw">— 1/год</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Еквівалентна інтенсивність ПЗ (λ_sw11)</div>
+                <div class="value" id="res_lsw">— 1/год</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="tabs">
+                <button class="tab-btn active" id="tabStates" onclick="switchTab('states')">Розподіл ймовірностей станів P_i(t)</button>
+                <button class="tab-btn" id="tabRel" onclick="switchTab('reliability')">Ймовірність безвідмовної роботи P(t)</button>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let chartInstance = null;
+    let currentTab = 'states';
+    let lastSimData = null;
+
+    // Система диференційних рівнянь Колмогорова-Чепмена (Варіант 1)
+    function getDerivatives(P, p) {
+        return [
+            -(p.l_sw11 + p.l_up1 + p.l_swerror + p.l_hw) * P[0] + p.u_rest * P[1], // dP1/dt
+            p.l_swerror * P[0] - p.u_rest * P[1],                                   // dP2/dt
+            p.l_sw11 * P[0] - p.l_up1 * P[2],                                       // dP3/dt
+            p.l_up1 * P[0] + p.l_up1 * P[2] - p.u_repl * P[3],                      // dP4/dt
+            p.u_repl * P[3] - (p.l_swerror + p.l_hw) * P[4] + p.u_rest * P[5],      // dP5/dt
+            p.l_swerror * P[4] - p.u_rest * P[5],                                   // dP6/dt
+            p.l_hw * P[0] + p.l_hw * P[4]                                           // dP7/dt
+        ];
+    }
+
+    // Чисельний метод Рунге-Кутти 4-го порядку
+    function rk4Step(P, params, dt) {
+        const k1 = getDerivatives(P, params);
+        const pK2 = P.map((val, i) => val + k1[i] * dt / 2);
+        const k2 = getDerivatives(pK2, params);
+        const pK3 = P.map((val, i) => val + k2[i] * dt / 2);
+        const k3 = getDerivatives(pK3, params);
+        const pK4 = P.map((val, i) => val + k3[i] * dt);
+        const k4 = getDerivatives(pK4, params);
+
+        return P.map((val, i) => val + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+    }
+
+    function runSimulation() {
+        // Зчитування інтенсивностей модулів Варіанта 1
+        const l_az1 = parseFloat(document.getElementById('l_az1').value);
+        const l_az2 = parseFloat(document.getElementById('l_az2').value);
+        const l_az3 = parseFloat(document.getElementById('l_az3').value);
+        const l_az4 = parseFloat(document.getElementById('l_az4').value);
+        const l_az5 = parseFloat(document.getElementById('l_az5').value);
+
+        const l_pz1 = parseFloat(document.getElementById('l_pz1').value);
+        const l_pz3 = parseFloat(document.getElementById('l_pz3').value);
+
+        // Розрахунок еквівалентної інтенсивності для паралельно-послідовної схеми Варіанта 1:
+        // Верхня гілка (1-2) та нижня гілка (3-4) з'єднані паралельно, а модуль 5 — послідовно
+        const l_branch1_hw = l_az1 + l_az2;
+        const l_branch2_hw = l_az3 + l_az4;
+        // Еквівалентна інтенсивність паралельного з'єднання гілок (через середній час):
+        const T_parallel_hw = (1 / l_branch1_hw) + (1 / l_branch2_hw) - (1 / (l_branch1_hw + l_branch2_hw));
+        const l_parallel_hw = 1 / T_parallel_hw;
+
+        // Загальна апаратна інтенсивність відмов (паралельний блок + послідовний модуль 5)
+        const l_hw = l_parallel_hw + l_az5;
+
+        // Еквівалентна програмна інтенсивність (паралельні гілки з ПЗ1 та ПЗ3)
+        const T_parallel_sw = (1 / l_pz1) + (1 / l_pz3) - (1 / (l_pz1 + l_pz3));
+        const l_sw11 = 1 / T_parallel_sw;
+
+        const params = {
+            l_sw11: l_sw11,
+            l_hw: l_hw,
+            l_up1: parseFloat(document.getElementById('l_up1').value),
+            l_swerror: parseFloat(document.getElementById('l_swerror').value),
+            u_rest: parseFloat(document.getElementById('u_rest').value),
+            u_repl: parseFloat(document.getElementById('u_repl').value)
+        };
+
+        const tEnd = parseFloat(document.getElementById('t_end').value);
+        const dt = parseFloat(document.getElementById('dt_step').value);
+
+        let P = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        const labels = [];
+        const series = [[], [], [], [], [], [], []];
+        const relP = [];
+        const failQ = [];
+
+        // Чисельне інтегрування для знаходження T_сер (MTTF) за формулою (1.11)
+        let mttf = 0.0;
+        const plotStep = Math.max(1, Math.floor(tEnd / 200));
+
+        for (let step = 0, t = 0; t <= tEnd; step++, t += dt) {
+            // Ймовірність безвідмовної роботи системи P(t) = P1(t) + P5(t) (працездатні стани)
+            const currentP_work = P[0] + P[4];
+            const currentP_notFailed = 1.0 - P[6]; // Не в поглинаючому стані відмови S7
+
+            mttf += currentP_notFailed * dt;
+
+            if (step % plotStep === 0) {
+                labels.push(Math.round(t));
+                for (let i = 0; i < 7; i++) series[i].push(P[i]);
+                relP.push(currentP_work);
+                failQ.push(P[6]);
+            }
+
+            P = rk4Step(P, params, dt);
+        }
+
+        // Оновлення карток показників
+        document.getElementById('res_mttf').innerText = mttf.toFixed(1) + ' год';
+        document.getElementById('res_lhw').innerText = l_hw.toExponential(3);
+        document.getElementById('res_lsw').innerText = l_sw11.toExponential(3);
+
+        lastSimData = { labels, series, relP, failQ };
+        renderChart();
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('tabStates').classList.toggle('active', tab === 'states');
+        document.getElementById('tabRel').classList.toggle('active', tab === 'reliability');
+        renderChart();
+    }
+
+    function renderChart() {
+        if (!lastSimData) return;
+        if (chartInstance) chartInstance.destroy();
+
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        let datasets = [];
+
+        if (currentTab === 'states') {
+            datasets = [
+                { label: 'S1 (Робота: версія 1)', data: lastSimData.series[0], borderColor: '#2563eb', borderWidth: 2, pointRadius: 0 },
+                { label: 'S5 (Робота: оновлена)', data: lastSimData.series[4], borderColor: '#10b981', borderWidth: 2, pointRadius: 0 },
+                { label: 'S7 (Відмова АЗ)', data: lastSimData.series[6], borderColor: '#ef4444', borderWidth: 2, pointRadius: 0 },
+                { label: 'S2, S6 (Перезапуск)', data: lastSimData.series[1].map((v, i) => v + lastSimData.series[5][i]), borderColor: '#f59e0b', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0 },
+                { label: 'S3, S4 (Оновлення ПЗ)', data: lastSimData.series[2].map((v, i) => v + lastSimData.series[3][i]), borderColor: '#8b5cf6', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0 }
+            ];
+        } else {
+            datasets = [
+                { label: 'Ймовірність працездатності P_роб(t) = P1 + P5', data: lastSimData.relP, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, borderWidth: 2.5, pointRadius: 0 },
+                { label: 'Ймовірність повної відмови Q(t) = P7', data: lastSimData.failQ, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0 }
+            ];
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels: lastSimData.labels, datasets: datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { title: { display: true, text: 'Час експлуатації t, год' } },
+                    y: { title: { display: true, text: 'Ймовірність' }, min: 0, max: 1.02 }
+                }
+            }
+        });
+    }
+    window.onload = runSimulation;
+</script>
+</body>
+</html>
