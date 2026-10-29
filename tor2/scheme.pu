@@ -1,0 +1,24 @@
+@startuml
+left to right direction
+
+usecase "S1" as S1
+usecase "S2" as S2
+usecase "S3" as S3
+usecase "S4" as S4
+usecase "S5" as S5
+usecase "S6" as S6
+usecase "S7" as S7
+
+S1 --> S2 : λ_swerror
+S2 --> S1 : μ_rest
+S1 --> S3 : λ_sw11(t)
+S1 --> S4 : λ_up1
+S3 --> S4 : λ_up1
+S4 --> S5 : μ_repl
+S5 --> S6 : λ_swerror
+S6 --> S5 : μ_rest
+S1 --> S7 : λ_hw
+S5 --> S7 : λ_hw
+S7 --> S1 : 1/T_rep
+
+@enduml
