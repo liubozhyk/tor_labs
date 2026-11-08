@@ -149,6 +149,8 @@
             border-left: 4px solid var(--primary);
         }
         .kpi-card.accent { border-left-color: var(--accent); }
+        .kpi-card.danger { border-left-color: #ef4444; }
+        .kpi-card.warn { border-left-color: #f97316; }
         .kpi-card .label { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
         .kpi-card .value { font-size: 20px; font-weight: 700; color: var(--text-main); }
         
@@ -176,6 +178,65 @@
             position: relative;
             height: 460px;
             width: 100%;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Sensitivity table styles */
+        .sens-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .sens-controls label { font-size: 12px; font-weight: 500; }
+        .sens-controls select, .sens-controls input {
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .sens-controls button {
+            padding: 8px 18px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .sens-controls button:hover { background: var(--primary-hover); }
+        .sens-table-wrap { overflow-x: auto; }
+        .sens-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .sens-table th {
+            background: #f1f5f9;
+            padding: 10px 14px;
+            text-align: center;
+            border: 1px solid var(--border);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .sens-table th.param-col { background: #dbeafe; color: var(--primary); }
+        .sens-table td {
+            padding: 9px 14px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .sens-table tr:nth-child(even) td { background: #f8fafc; }
+        .sens-table tr.base-row td { background: #fef3c7; font-weight: 700; }
+        .sens-table tr:hover td { background: #eff6ff; }
+        .sens-note {
+            margin-top: 14px;
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.6;
         }
     </style>
 </head>
@@ -252,6 +313,22 @@
             </div>
         </div>
 
+        <div class="section-title">Розширена модель (нові параметри)</div>
+        <div class="input-group">
+            <div class="field">
+                <label>λ_sw12 (Відмова онов. ПЗ):</label>
+                <input type="number" id="l_sw12" value="0.0003" step="0.0001">
+            </div>
+            <div class="field">
+                <label>λ_hw_deg (Деградація АЗ):</label>
+                <input type="number" id="l_hw_deg" value="0.0003" step="0.0001">
+            </div>
+            <div class="field full">
+                <label>λ_inst_fail (Помилка встановлення):</label>
+                <input type="number" id="l_inst_fail" value="0.0001" step="0.00005">
+            </div>
+        </div>
+
         <button class="btn-primary" onclick="runSimulation()">Розрахувати показники</button>
     </div>
 
@@ -270,17 +347,78 @@
                 <div class="label">Еквівалентна інтенсивність ПЗ (λ_sw11)</div>
                 <div class="value" id="res_lsw">— 1/год</div>
             </div>
+            <div class="kpi-card danger">
+                <div class="label">P_відм АЗ (Q_hw) = P7 у кінці t</div>
+                <div class="value" id="res_q_hw">—</div>
+            </div>
+            <div class="kpi-card warn">
+                <div class="label">P_відм ПЗ після онов. (Q_SW) = P8 у кінці t</div>
+                <div class="value" id="res_q_sw">—</div>
+            </div>
+            <div class="kpi-card warn">
+                <div class="label">P_помилки встан. (Q_inst) = P10 у кінці t</div>
+                <div class="value" id="res_q_inst">—</div>
+            </div>
         </div>
 
         <div class="panel">
             <div class="tabs">
-                <button class="tab-btn active" id="tabStates" onclick="switchTab('states')">Розподіл ймовірностей станів P_i(t)</button>
+                <button class="tab-btn active" id="tabStates" onclick="switchTab('states')">Розподіл ймовірностей P_i(t)</button>
                 <button class="tab-btn" id="tabRel" onclick="switchTab('reliability')">Ймовірність безвідмовної роботи P(t)</button>
+                <button class="tab-btn" id="tabSens" onclick="switchTab('sensitivity')">📊 Таблиця чутливості</button>
             </div>
-            <div class="chart-wrapper">
-                <canvas id="mainChart"></canvas>
+
+            <!-- Вкладка: графіки -->
+            <div class="tab-content active" id="contentStates">
+                <div class="chart-wrapper">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+            <div class="tab-content" id="contentReliability">
+                <div class="chart-wrapper">
+                    <canvas id="relChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Вкладка: таблиця чутливості -->
+            <div class="tab-content" id="contentSensitivity">
+                <div class="sens-controls">
+                    <label>Варіювати параметр:</label>
+                    <select id="sensParam">
+                        <option value="l_az1">λ_АЗ1 — Модуль 1 (АЗ)</option>
+                        <option value="l_pz1">λ_ПЗ1 — Модуль 1 (ПЗ)</option>
+                        <option value="l_az5">λ_АЗ5 — Модуль 5 (послідовний)</option>
+                        <option value="l_sw12">λ_sw12 — Відмова оновленого ПЗ</option>
+                        <option value="l_hw_deg">λ_hw_deg — Деградація АЗ</option>
+                        <option value="l_inst_fail">λ_inst_fail — Помилка встановлення</option>
+                    </select>
+                    <label>Значення (через кому):</label>
+                    <input type="text" id="sensValues" value="1e-4, 3e-4, 5e-4, 7e-4, 9e-4" style="width:260px">
+                    <button onclick="runSensitivity()">Розрахувати таблицю</button>
+                </div>
+                <div class="sens-table-wrap">
+                    <table class="sens-table" id="sensTable">
+                        <thead>
+                            <tr>
+                                <th class="param-col">λ, год⁻¹</th>
+                                <th>T_сер, год</th>
+                                <th>Q_hw (P7)</th>
+                                <th>Q_sw (P8)</th>
+                                <th>Q_inst (P10)</th>
+                                <th>P_роб = P1+P5+P9</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sensTableBody">
+                            <tr><td colspan="6" style="color:var(--text-muted); padding:24px">
+                                Натисніть «Розрахувати таблицю» для генерації
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="sens-note" id="sensNote"></div>
             </div>
         </div>
+
     </div>
 </div>
 
@@ -289,16 +427,19 @@
     let currentTab = 'states';
     let lastSimData = null;
 
-    // Система диференційних рівнянь Колмогорова-Чепмена (Варіант 1)
+    // Система диференційних рівнянь Колмогорова-Чепмена (Варіант 1, 10 станів)
     function getDerivatives(P, p) {
         return [
-            -(p.l_sw11 + p.l_up1 + p.l_swerror + p.l_hw) * P[0] + p.u_rest * P[1], // dP1/dt
-            p.l_swerror * P[0] - p.u_rest * P[1],                                   // dP2/dt
-            p.l_sw11 * P[0] - p.l_up1 * P[2],                                       // dP3/dt
-            p.l_up1 * P[0] + p.l_up1 * P[2] - p.u_repl * P[3],                      // dP4/dt
-            p.u_repl * P[3] - (p.l_swerror + p.l_hw) * P[4] + p.u_rest * P[5],      // dP5/dt
-            p.l_swerror * P[4] - p.u_rest * P[5],                                   // dP6/dt
-            p.l_hw * P[0] + p.l_hw * P[4]                                           // dP7/dt
+            -(p.l_sw11 + p.l_up1 + p.l_swerror + p.l_hw + p.l_hw_deg) * P[0] + p.u_rest * P[1], // dP1/dt
+            p.l_swerror * P[0] - p.u_rest * P[1],                                                 // dP2/dt
+            p.l_sw11 * P[0] - p.l_up1 * P[2],                                                     // dP3/dt
+            p.l_up1 * P[0] + p.l_up1 * P[2] - (p.u_repl + p.l_inst_fail) * P[3],                 // dP4/dt
+            p.u_repl * P[3] - (p.l_swerror + p.l_hw + p.l_hw_deg + p.l_sw12) * P[4] + p.u_rest * P[5], // dP5/dt
+            p.l_swerror * P[4] - p.u_rest * P[5],                                                 // dP6/dt
+            p.l_hw * P[0] + p.l_hw * P[4] + p.l_hw * P[8],                                       // dP7/dt (поглинаючий)
+            p.l_sw12 * P[4],                                                                       // dP8/dt (поглинаючий)
+            p.l_hw_deg * P[0] + p.l_hw_deg * P[4] - p.l_hw * P[8],                               // dP9/dt
+            p.l_inst_fail * P[3]                                                                   // dP10/dt (поглинаючий)
         ];
     }
 
@@ -341,21 +482,30 @@
         const T_parallel_sw = (1 / l_pz1) + (1 / l_pz3) - (1 / (l_pz1 + l_pz3));
         const l_sw11 = 1 / T_parallel_sw;
 
+        // Нові параметри розширеної моделі
+        const l_sw12 = parseFloat(document.getElementById('l_sw12').value);
+        const l_hw_deg = parseFloat(document.getElementById('l_hw_deg').value);
+        const l_inst_fail = parseFloat(document.getElementById('l_inst_fail').value);
+
         const params = {
             l_sw11: l_sw11,
             l_hw: l_hw,
             l_up1: parseFloat(document.getElementById('l_up1').value),
             l_swerror: parseFloat(document.getElementById('l_swerror').value),
             u_rest: parseFloat(document.getElementById('u_rest').value),
-            u_repl: parseFloat(document.getElementById('u_repl').value)
+            u_repl: parseFloat(document.getElementById('u_repl').value),
+            l_sw12: l_sw12,
+            l_hw_deg: l_hw_deg,
+            l_inst_fail: l_inst_fail
         };
 
         const tEnd = parseFloat(document.getElementById('t_end').value);
         const dt = parseFloat(document.getElementById('dt_step').value);
 
-        let P = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        // 10 станів: P[0]..P[9]
+        let P = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
         const labels = [];
-        const series = [[], [], [], [], [], [], []];
+        const series = [[], [], [], [], [], [], [], [], [], []];
         const relP = [];
         const failQ = [];
 
@@ -364,17 +514,15 @@
         const plotStep = Math.max(1, Math.floor(tEnd / 200));
 
         for (let step = 0, t = 0; t <= tEnd; step++, t += dt) {
-            // Ймовірність безвідмовної роботи системи P(t) = P1(t) + P5(t) (працездатні стани)
-            const currentP_work = P[0] + P[4];
-            const currentP_notFailed = 1.0 - P[6]; // Не в поглинаючому стані відмови S7
-
-            mttf += currentP_notFailed * dt;
+            // Працездатні стани: S1 + S5 + S9 (P[0] + P[4] + P[8])
+            // Поглинаючі відмовні стани: S7 + S8 + S10 (P[6] + P[7] + P[9])
+            mttf += (1.0 - P[6] - P[7] - P[9]) * dt;
 
             if (step % plotStep === 0) {
                 labels.push(Math.round(t));
-                for (let i = 0; i < 7; i++) series[i].push(P[i]);
-                relP.push(currentP_work);
-                failQ.push(P[6]);
+                for (let i = 0; i < 10; i++) series[i].push(P[i]);
+                relP.push(P[0] + P[4] + P[8]);
+                failQ.push(P[6] + P[7] + P[9]);
             }
 
             P = rk4Step(P, params, dt);
@@ -384,6 +532,9 @@
         document.getElementById('res_mttf').innerText = mttf.toFixed(1) + ' год';
         document.getElementById('res_lhw').innerText = l_hw.toExponential(3);
         document.getElementById('res_lsw').innerText = l_sw11.toExponential(3);
+        document.getElementById('res_q_hw').innerText = P[6].toFixed(4);
+        document.getElementById('res_q_sw').innerText = P[7].toFixed(4);
+        document.getElementById('res_q_inst').innerText = P[9].toFixed(4);
 
         lastSimData = { labels, series, relP, failQ };
         renderChart();
@@ -393,37 +544,58 @@
         currentTab = tab;
         document.getElementById('tabStates').classList.toggle('active', tab === 'states');
         document.getElementById('tabRel').classList.toggle('active', tab === 'reliability');
-        renderChart();
+        document.getElementById('tabSens').classList.toggle('active', tab === 'sensitivity');
+        document.getElementById('contentStates').classList.toggle('active', tab === 'states');
+        document.getElementById('contentReliability').classList.toggle('active', tab === 'reliability');
+        document.getElementById('contentSensitivity').classList.toggle('active', tab === 'sensitivity');
+        if (tab !== 'sensitivity') renderChart();
     }
+
+    let relChartInstance = null;
 
     function renderChart() {
         if (!lastSimData) return;
+
+        // Графік станів
         if (chartInstance) chartInstance.destroy();
-
         const ctx = document.getElementById('mainChart').getContext('2d');
-        let datasets = [];
-
-        if (currentTab === 'states') {
-            datasets = [
-                { label: 'S1 (Робота: версія 1)', data: lastSimData.series[0], borderColor: '#2563eb', borderWidth: 2, pointRadius: 0 },
-                { label: 'S5 (Робота: оновлена)', data: lastSimData.series[4], borderColor: '#10b981', borderWidth: 2, pointRadius: 0 },
-                { label: 'S7 (Відмова АЗ)', data: lastSimData.series[6], borderColor: '#ef4444', borderWidth: 2, pointRadius: 0 },
-                { label: 'S2, S6 (Перезапуск)', data: lastSimData.series[1].map((v, i) => v + lastSimData.series[5][i]), borderColor: '#f59e0b', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0 },
-                { label: 'S3, S4 (Оновлення ПЗ)', data: lastSimData.series[2].map((v, i) => v + lastSimData.series[3][i]), borderColor: '#8b5cf6', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0 }
-            ];
-        } else {
-            datasets = [
-                { label: 'Ймовірність працездатності P_роб(t) = P1 + P5', data: lastSimData.relP, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, borderWidth: 2.5, pointRadius: 0 },
-                { label: 'Ймовірність повної відмови Q(t) = P7', data: lastSimData.failQ, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0 }
-            ];
-        }
-
+        const stateDatasets = [
+            { label: 'S1 (Робота: версія 1 ПЗ)',         data: lastSimData.series[0], borderColor: '#2563eb', borderWidth: 2,   pointRadius: 0 },
+            { label: 'S5 (Робота: оновлена версія ПЗ)',   data: lastSimData.series[4], borderColor: '#10b981', borderWidth: 2,   pointRadius: 0 },
+            { label: 'S9 (Деградація АЗ)',                data: lastSimData.series[8], borderColor: '#06b6d4', borderWidth: 1.5, pointRadius: 0, borderDash: [4, 4] },
+            { label: 'S2+S6 (Перезапуск ПЗ)',            data: lastSimData.series[1].map((v,i) => v + lastSimData.series[5][i]), borderColor: '#f59e0b', borderDash: [5,5], borderWidth: 1.5, pointRadius: 0 },
+            { label: 'S3+S4 (Оновлення ПЗ)',             data: lastSimData.series[2].map((v,i) => v + lastSimData.series[3][i]), borderColor: '#8b5cf6', borderDash: [5,5], borderWidth: 1.5, pointRadius: 0 },
+            { label: 'S7 (Відмова АЗ)',                   data: lastSimData.series[6], borderColor: '#ef4444', borderWidth: 2,   pointRadius: 0 },
+            { label: 'S8 (Відмова ПЗ після оновлення)',   data: lastSimData.series[7], borderColor: '#f97316', borderWidth: 1.5, pointRadius: 0 },
+            { label: 'S10 (Помилка встановлення)',         data: lastSimData.series[9], borderColor: '#ec4899', borderWidth: 1.5, pointRadius: 0 }
+        ];
         chartInstance = new Chart(ctx, {
             type: 'line',
-            data: { labels: lastSimData.labels, datasets: datasets },
+            data: { labels: lastSimData.labels, datasets: stateDatasets },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { title: { display: true, text: 'Час експлуатації t, год' } },
+                    y: { title: { display: true, text: 'Ймовірність' }, min: 0, max: 1.02 }
+                }
+            }
+        });
+
+        // Графік надійності
+        if (relChartInstance) relChartInstance.destroy();
+        const ctx2 = document.getElementById('relChart').getContext('2d');
+        relChartInstance = new Chart(ctx2, {
+            type: 'line',
+            data: {
+                labels: lastSimData.labels,
+                datasets: [
+                    { label: 'P_роб(t) = P1+P5+P9', data: lastSimData.relP, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, borderWidth: 2.5, pointRadius: 0 },
+                    { label: 'Q(t) = P7+P8+P10',     data: lastSimData.failQ, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 scales: {
                     x: { title: { display: true, text: 'Час експлуатації t, год' } },
@@ -432,6 +604,111 @@
             }
         });
     }
+
+    // ─── Таблиця чутливості ───────────────────────────────────────────────────
+    function runOnce(params, tEnd, dt) {
+        let P = [1,0,0,0,0,0,0,0,0,0];
+        let mttf = 0;
+        for (let t = 0; t <= tEnd; t += dt) {
+            mttf += (1 - P[6] - P[7] - P[9]) * dt;
+            P = rk4Step(P, params, dt);
+        }
+        return { mttf, P };
+    }
+
+    function buildBaseParams() {
+        const l_az1 = parseFloat(document.getElementById('l_az1').value);
+        const l_az2 = parseFloat(document.getElementById('l_az2').value);
+        const l_az3 = parseFloat(document.getElementById('l_az3').value);
+        const l_az4 = parseFloat(document.getElementById('l_az4').value);
+        const l_az5 = parseFloat(document.getElementById('l_az5').value);
+        const l_pz1 = parseFloat(document.getElementById('l_pz1').value);
+        const l_pz3 = parseFloat(document.getElementById('l_pz3').value);
+        const l_b1 = l_az1 + l_az2, l_b2 = l_az3 + l_az4;
+        const l_hw = 1 / ((1/l_b1) + (1/l_b2) - (1/(l_b1+l_b2))) + l_az5;
+        const l_sw11 = 1 / ((1/l_pz1) + (1/l_pz3) - (1/(l_pz1+l_pz3)));
+        return {
+            l_sw11, l_hw,
+            l_up1:       parseFloat(document.getElementById('l_up1').value),
+            l_swerror:   parseFloat(document.getElementById('l_swerror').value),
+            u_rest:      parseFloat(document.getElementById('u_rest').value),
+            u_repl:      parseFloat(document.getElementById('u_repl').value),
+            l_sw12:      parseFloat(document.getElementById('l_sw12').value),
+            l_hw_deg:    parseFloat(document.getElementById('l_hw_deg').value),
+            l_inst_fail: parseFloat(document.getElementById('l_inst_fail').value),
+            // зберігаємо компоненти для підміни
+            _l_az1: l_az1, _l_az2: l_az2, _l_az3: l_az3, _l_az4: l_az4, _l_az5: l_az5,
+            _l_pz1: l_pz1, _l_pz3: l_pz3
+        };
+    }
+
+    function recomputeDerived(p, paramKey, val) {
+        // Клонуємо та підмінюємо один параметр, перераховуємо залежні
+        const q = { ...p };
+        q['_' + paramKey] = val;         // напр. _l_az1 = val
+        if (['l_az1','l_az2','l_az3','l_az4','l_az5','l_pz1','l_pz3'].includes(paramKey)) {
+            const l_b1 = q._l_az1 + q._l_az2, l_b2 = q._l_az3 + q._l_az4;
+            q.l_hw   = 1 / ((1/l_b1) + (1/l_b2) - (1/(l_b1+l_b2))) + q._l_az5;
+            q.l_sw11 = 1 / ((1/q._l_pz1) + (1/q._l_pz3) - (1/(q._l_pz1+q._l_pz3)));
+        } else {
+            q[paramKey] = val;           // напр. l_sw12 = val
+        }
+        return q;
+    }
+
+    function runSensitivity() {
+        const paramKey  = document.getElementById('sensParam').value;
+        const rawValues = document.getElementById('sensValues').value;
+        const values    = rawValues.split(',').map(s => parseFloat(s.trim())).filter(v => !isNaN(v));
+        if (!values.length) { alert('Введіть коректні значення!'); return; }
+
+        const tEnd = parseFloat(document.getElementById('t_end').value);
+        const dt   = parseFloat(document.getElementById('dt_step').value);
+        const base = buildBaseParams();
+
+        // Визначаємо базове значення параметра для підсвітки рядка
+        const baseVal = base['_' + paramKey] ?? base[paramKey];
+
+        const tbody = document.getElementById('sensTableBody');
+        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-muted);padding:16px">⏳ Розраховую…</td></tr>';
+
+        // Використовуємо setTimeout щоб браузер встиг відрендерити "Розраховую…"
+        setTimeout(() => {
+            let rows = '';
+            values.forEach(val => {
+                const p = recomputeDerived(base, paramKey, val);
+                const { mttf, P } = runOnce(p, tEnd, dt);
+                const isBase = Math.abs(val - baseVal) < baseVal * 0.01;
+                const pRob   = (P[0] + P[4] + P[8]).toFixed(4);
+                const qHw    = P[6].toFixed(4);
+                const qSw    = P[7].toFixed(4);
+                const qInst  = P[9].toFixed(4);
+                rows += `<tr${isBase ? ' class="base-row"' : ''}>
+                    <td>${val.toExponential(2)}</td>
+                    <td>${mttf.toFixed(1)}</td>
+                    <td>${qHw}</td>
+                    <td>${qSw}</td>
+                    <td>${qInst}</td>
+                    <td>${pRob}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = rows;
+
+            const paramLabels = {
+                l_az1: 'λ_АЗ1 (Модуль 1, АЗ)', l_pz1: 'λ_ПЗ1 (Модуль 1, ПЗ)',
+                l_az5: 'λ_АЗ5 (Модуль 5, послідовний)',
+                l_sw12: 'λ_sw12 (відмова оновленого ПЗ)',
+                l_hw_deg: 'λ_hw_deg (деградація АЗ)',
+                l_inst_fail: 'λ_inst_fail (помилка встановлення)'
+            };
+            document.getElementById('sensNote').innerHTML =
+                `📌 Варіювався параметр: <strong>${paramLabels[paramKey] || paramKey}</strong>. ` +
+                `Решта параметрів — базові значення з панелі зліва. ` +
+                `Жовтий рядок — базове значення параметра. ` +
+                `T_сер розраховано методом Рунге-Кутти 4-го порядку (dt=${dt} год, t_max=${tEnd} год).`;
+        }, 30);
+    }
+
     window.onload = runSimulation;
 </script>
 </body>
