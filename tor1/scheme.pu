@@ -1,23 +1,32 @@
-@startuml
+@startuml reliability_flow
 left to right direction
 
-usecase "S1" as S1
-usecase "S2" as S2
-usecase "S3" as S3
-usecase "S4" as S4
-usecase "S5" as S5
-usecase "S6" as S6
-usecase "S7" as S7
+    (*) --> "S1" as S1
 
-S1 --> S2 : λ_swerror
-S2 --> S1 : μ_rest
-S1 --> S3 : λ_sw11
-S1 --> S4 : λ_up1
-S3 --> S4 : λ_up1
-S4 --> S5 : μ_repl
-S5 --> S6 : λ_swerror
-S6 --> S5 : μ_rest
-S1 --> S7 : λ_hw
-S5 --> S7 : λ_hw
+    S1 -->[λ_swerror] "S2" as S2
+    S2 -->[μ_rest] S1
+
+    S1 -->[λ_sw11] "S3" as S3
+    S3 -->[λ_up1] "S4" as S4
+
+    S1 -->[λ_up1] S4
+    S4 -->[μ_repl] "S5" as S5
+    S4 -->[λ_inst_fail] "S10" as S10
+
+    S5 -->[λ_swerror] "S6" as S6
+    S6 -->[μ_rest] S5
+
+    S5 -->[λ_sw12] "S8" as S8
+
+    S1 -->[λ_hw_deg] "S9" as S9
+    S5 -->[λ_hw_deg] S9
+    S9 -->[λ_hw] "S7" as S7
+
+    S1 -->[λ_hw] S7
+    S5 -->[λ_hw] S7
+
+    S7 --> (*)
+    S8 --> (*)
+    S10 --> (*)
 
 @enduml
